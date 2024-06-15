@@ -65,6 +65,12 @@ jobs:
 
     - name: Verify Docker services
       run: docker ps -a
+    
+    - name: Check Postgres service
+      run: docker logs ${{ job.services.postgres.id }}
+
+    - name: Sleep for 10 seconds to ensure Postgres is ready
+      run: sleep 10
 
     - name: Set up database
       run: |
