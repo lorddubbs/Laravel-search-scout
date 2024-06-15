@@ -11,7 +11,7 @@ jobs:
   build_and_test:
     runs-on: ${{ vars.CI_RUNNER }}
     services:
-      db_test:
+      postgres:
         image: ${{ vars.DB_IMAGE }}
         env:
           POSTGRES_DB: ${{ vars.DB_DATABASE }}
@@ -43,16 +43,9 @@ jobs:
 
     - name: Set secrets in .env
       run: |
+        sed -i 's/db_host/${{ vars.DB_HOST }}/' .env
         sed -i 's/db_password/${{ vars.DB_PASSWORD }}/' .env
         sed -i 's/redis_password/${{ vars.REDIS_PASSWORD }}/' .env
-
-    - name: Wait for PostgreSQL to be ready
-      run: |
-        echo "Waiting for PostgreSQL..."
-        while ! pg_isready -h db_test -p 5432; do
-          sleep 1
-        done
-        echo "PostgreSQL is ready"
 
     - name: Generate application key
       run: php artisan key:generate
