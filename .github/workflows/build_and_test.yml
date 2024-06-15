@@ -28,15 +28,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Cache Composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+
     - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: 8.3
         extensions: curl, pdo_pgsql, mbstring, intl, zip
-        tools: composer:v2
+        tools: composer:v2, php-codesniffer
     
     - name: Install Composer dependencies
-      run: composer install
+      run: composer install --prefer-dist --no-progress --no-suggest
 
     - name: Copy .env.testing.example to .env
       run: cp .env.testing.example .env
@@ -64,7 +71,7 @@ jobs:
     - name: Run tests
       env:
         DB_CONNECTION: ${{ vars.DB_CONNECTION }}
-        DB_HOST: ${{ env.DB_HOST }}
+        DB_HOST: postgres
         DB_PORT: ${{ vars.DB_PORT }}
         DB_DATABASE: ${{ vars.DB_DATABASE }}
         DB_USERNAME: ${{ vars.DB_USERNAME }}
@@ -76,3 +83,6 @@ jobs:
         REDIS_DB: ${{ vars.REDIS_DB }}
         REDIS_CACHE_DB: ${{ vars.REDIS_CACHE_DB }}
       run: php artisan test
+
+    - name: Run PHP CodeSniffer
+      run: composer lint
