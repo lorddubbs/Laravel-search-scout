@@ -41,6 +41,11 @@ jobs:
     - name: Copy .env.testing to .env
       run: cp .env.testing .env
 
+    - name: Set secrets in .env
+      run: |
+        sed -i 's/db_password/${{ vars.DB_PASSWORD }}/' .env
+        sed -i 's/redis_password/${{ vars.REDIS_PASSWORD }}/' .env
+
     - name: Generate application key
       run: php artisan key:generate
 
