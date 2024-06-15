@@ -47,11 +47,14 @@ jobs:
         sed -i 's/db_password/${{ secrets.DB_PASSWORD }}/' .env
         sed -i 's/redis_password/${{ secrets.REDIS_PASSWORD }}/' .env
 
+    - name: Generate application key
+      run: php artisan key:generate
+
     - name: Verify .env content
       run: cat .env
 
-    - name: Generate application key
-      run: php artisan key:generate
+    - name: Verify Docker services
+      run: docker ps -a
 
     - name: Set up database
       run: |
@@ -61,7 +64,7 @@ jobs:
     - name: Run tests
       env:
         DB_CONNECTION: ${{ vars.DB_CONNECTION }}
-        DB_HOST: db_test
+        DB_HOST: ${{ env.DB_HOST }}
         DB_PORT: ${{ vars.DB_PORT }}
         DB_DATABASE: ${{ vars.DB_DATABASE }}
         DB_USERNAME: ${{ vars.DB_USERNAME }}
