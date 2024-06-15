@@ -46,6 +46,14 @@ jobs:
         sed -i 's/db_password/${{ vars.DB_PASSWORD }}/' .env
         sed -i 's/redis_password/${{ vars.REDIS_PASSWORD }}/' .env
 
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        echo "Waiting for PostgreSQL..."
+        while ! pg_isready -h db_test -p 5432; do
+          sleep 1
+        done
+        echo "PostgreSQL is ready"
+
     - name: Generate application key
       run: php artisan key:generate
 
@@ -57,7 +65,7 @@ jobs:
     - name: Run tests
       env:
         DB_CONNECTION: ${{ vars.DB_CONNECTION }}
-        DB_HOST: ${{ vars.DB_HOST }}
+        DB_HOST: db_test
         DB_PORT: ${{ vars.DB_PORT }}
         DB_DATABASE: ${{ vars.DB_DATABASE }}
         DB_USERNAME: ${{ vars.DB_USERNAME }}
