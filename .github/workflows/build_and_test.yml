@@ -38,8 +38,8 @@ jobs:
     - name: Install Composer dependencies
       run: composer install
 
-    - name: Copy .env.testing to .env
-      run: cp .env.testing .env
+    - name: Copy .env.testing.example to .env
+      run: cp .env.testing.example .env
 
     - name: Set secrets in .env
       run: |
