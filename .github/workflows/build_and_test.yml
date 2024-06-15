@@ -14,7 +14,7 @@ jobs:
       postgres:
         image: ${{ vars.DB_IMAGE }}
         env:
-          POSTGRES_DB: ${{ vars.DB_DATABASE }}
+          POSTGRES_DB: lss_test
           POSTGRES_USER: ${{ vars.DB_USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
