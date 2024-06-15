@@ -1,0 +1,65 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    runs-on: ${{ vars.CI_RUNNER }}
+    services:
+      postgres:
+        image: ${{ vars.DB_IMAGE }}
+        env:
+          POSTGRES_DB: ${{ vars.DB_DATABASE }}
+          POSTGRES_USER: ${{ vars.DB_USERNAME }}
+          POSTGRES_PASSWORD: ${{ vars.DB_PASSWORD }}
+        ports:
+          - ${{ vars.DB_PORT }}
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.3
+        extensions: curl, libonig-dev, libxml2-dev, libzip-dev, zip, unzip, libpq-dev
+        tools: composer:v2
+    
+    - name: Install Composer dependencies
+      run: composer install
+
+    - name: Copy .env.testing to .env
+      run: cp .env.testing .env
+
+    - name: Generate application key
+      run: php artisan key:generate
+
+    - name: Set up database
+      run: |
+        php artisan config:cache
+        php artisan migrate --env=testing --force
+
+    - name: Run tests
+      env:
+        DB_CONNECTION: ${{ vars.DB_CONNECTION }}
+        DB_HOST: ${{ vars.DB_HOST }}
+        DB_PORT: ${{ vars.DB_PORT }}
+        DB_DATABASE: ${{ vars.DB_DATABASE }}
+        DB_USERNAME: ${{ vars.DB_USERNAME }}
+        DB_PASSWORD: ${{ vars.DB_PASSWORD }}
+        REDIS_CLIENT: ${{ vars.REDIS_CLIENT }}
+        REDIS_HOST: ${{ vars.REDIS_HOST }}
+        REDIS_PASSWORD: ${{ vars.REDIS_PASSWORD }}
+        REDIS_PORT: ${{ vars.REDIS_PORT }}
+        REDIS_DB: ${{ vars.REDIS_DB }}
+        REDIS_CACHE_DB: ${{ vars.REDIS_CACHE_DB }}
+      run: php artisan test
