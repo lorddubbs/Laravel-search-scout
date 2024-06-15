@@ -40,7 +40,7 @@ jobs:
       with:
         php-version: 8.3
         extensions: curl, pdo_pgsql, mbstring, intl, zip
-        tools: composer:v2, php-codesniffer
+        tools: composer:v2
     
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress --no-suggest
@@ -60,6 +60,9 @@ jobs:
     - name: Verify .env content
       run: cat .env
 
+    - name: Verify Docker network
+      run: docker network ls
+
     - name: Verify Docker services
       run: docker ps -a
 
@@ -71,7 +74,7 @@ jobs:
     - name: Run tests
       env:
         DB_CONNECTION: ${{ vars.DB_CONNECTION }}
-        DB_HOST: postgres
+        DB_HOST:  ${{ vars.DB_HOST }}
         DB_PORT: ${{ vars.DB_PORT }}
         DB_DATABASE: ${{ vars.DB_DATABASE }}
         DB_USERNAME: ${{ vars.DB_USERNAME }}
