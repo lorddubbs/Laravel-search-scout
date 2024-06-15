@@ -1,6 +1,7 @@
 name: Build and Test
 
-on: [push, pull_request]
+on: 
+  pull_request:
 
 concurrency:
   group: ${{ github.head_ref || github.ref_name }}
@@ -10,7 +11,7 @@ jobs:
   build_and_test:
     runs-on: ${{ vars.CI_RUNNER }}
     services:
-      postgres:
+      db_test:
         image: ${{ vars.DB_IMAGE }}
         env:
           POSTGRES_DB: ${{ vars.DB_DATABASE }}
