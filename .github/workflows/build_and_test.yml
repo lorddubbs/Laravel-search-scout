@@ -34,19 +34,21 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Set up PHP extensions and Composer
+      run: |
+        apt-get update && apt-get install -y \
+          libpq-dev \
+          git \
+          unzip \
+          && docker-php-ext-install pdo_pgsql \
+          && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
     - name: Cache Composer dependencies
       uses: actions/cache@v4
       with:
         path: vendor
         key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
         restore-keys: ${{ runner.os }}-composer-
-
-    - name: Set up PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: 8.3
-        extensions: curl, pdo_pgsql, mbstring, intl, zip
-        tools: composer:v2
     
     - name: Install Composer dependencies
       run: composer install --prefer-dist --no-progress --no-suggest
