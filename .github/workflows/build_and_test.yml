@@ -14,7 +14,7 @@ jobs:
       postgres:
         image: ${{ vars.DB_IMAGE }}
         env:
-          POSTGRES_DB: lss_test
+          POSTGRES_DB: ${{ vars.DB_DATABASE }}
           POSTGRES_USER: ${{ vars.DB_USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
@@ -23,9 +23,12 @@ jobs:
           --health-cmd="pg_isready"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
-        volumes:
-          - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+          --health-retries=
+    # runs all of the steps inside the specified container rather than on the VM host.  
+    # Because of this the network configuration changes from host based network to a container network.
+    container:
+      image: php:8.3-fpm
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -58,21 +61,6 @@ jobs:
 
     - name: Generate application key
       run: php artisan key:generate
-
-    - name: Verify .env content
-      run: cat .env
-
-    - name: Verify Docker network
-      run: docker network ls
-
-    - name: Verify Docker services
-      run: docker ps -a
-    
-    - name: Check Postgres service
-      run: docker logs ${{ job.services.postgres.id }}
-
-    - name: Sleep for 10 seconds to ensure Postgres is ready
-      run: sleep 10
 
     - name: Set up database
       run: |
