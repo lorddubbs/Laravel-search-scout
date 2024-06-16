@@ -1,0 +1,91 @@
+name: Build and Test
+
+on: 
+  pull_request:
+
+concurrency:
+  group: ${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    runs-on: ${{ vars.CI_RUNNER }}
+    services:
+      postgres:
+        image: ${{ vars.DB_IMAGE }}
+        env:
+          POSTGRES_DB: ${{ vars.DB_DATABASE }}
+          POSTGRES_USER: ${{ vars.DB_USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - ${{ vars.DB_PORT }}
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    # runs all of the steps inside the specified container rather than on the VM host.  
+    # Because of this the network configuration changes from host based network to a container network.
+    # an alternative would be to set DB HOST as localhost
+    container:
+      image: php:8.3-fpm
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up PHP extensions and Composer
+      run: |
+        apt-get update && apt-get install -y \
+          libpq-dev \
+          git \
+          unzip \
+          && docker-php-ext-install pdo_pgsql \
+          && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+    - name: Cache Composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+    
+    - name: Install Composer dependencies
+      run: composer install --prefer-dist --no-progress --no-suggest
+
+    - name: Copy .env.testing.example to .env
+      run: cp .env.testing.example .env
+
+    - name: Set secrets in .env
+      run: |
+        sed -i 's/db_host/${{ vars.DB_HOST }}/' .env
+        sed -i 's/db_password/${{ secrets.DB_PASSWORD }}/' .env
+        sed -i 's/redis_password/${{ secrets.REDIS_PASSWORD }}/' .env
+
+    - name: Generate application key
+      run: php artisan key:generate
+
+    - name: Set up database
+      run: |
+        php artisan config:cache
+        php artisan migrate --env=testing --force
+
+    - name: Run tests
+      env:
+        DB_CONNECTION: ${{ vars.DB_CONNECTION }}
+        DB_HOST:  ${{ vars.DB_HOST }}
+        DB_PORT: ${{ vars.DB_PORT }}
+        DB_DATABASE: ${{ vars.DB_DATABASE }}
+        DB_USERNAME: ${{ vars.DB_USERNAME }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        REDIS_CLIENT: ${{ vars.REDIS_CLIENT }}
+        REDIS_HOST: ${{ vars.REDIS_HOST }}
+        REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+        REDIS_PORT: ${{ vars.REDIS_PORT }}
+        REDIS_DB: ${{ vars.REDIS_DB }}
+        REDIS_CACHE_DB: ${{ vars.REDIS_CACHE_DB }}
+      run: php artisan test
+
+    - name: Run PHP CodeSniffer
+      run: composer lint
