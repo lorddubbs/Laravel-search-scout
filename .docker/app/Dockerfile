@@ -1,82 +1,51 @@
-# Use the official PHP image as the base image
-# Stage 1: Builder
-FROM php:8.3-fpm AS builder
+# Stage 1: Dependencies
+FROM composer:2.5.8 as vendor
 
-# Set working directory
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --ansi --no-interaction --prefer-dist
+
+# Stage 2: Application
+FROM php:8.3-fpm
+
 WORKDIR /var/www
 
-# Install (necessary) system dependencies
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    curl \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    libpq-dev \
     zip \
     unzip \
-    libpq-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user and group
-RUN groupadd -r appgroup && useradd -r -g appgroup -d /var/www -s /sbin/nologin appuser
-
-# Install Xdebug
-RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath zip
+RUN pecl install redis xdebug \
+    && docker-php-ext-enable redis xdebug
 
-# Install Redis PHP extension
-RUN pecl install redis \
-    && rm -rf /tmp/pear \
-    && docker-php-ext-enable redis
+# Copy application
+COPY . .
+COPY --from=vendor /app/vendor ./vendor
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.5.8 /usr/bin/composer /usr/bin/composer
 
-# Copy application files (for Composer install)
-COPY . /var/www
+# Create a non-root user
+RUN groupadd -g 1000 appgroup && useradd -u 1000 -g appgroup -d /var/www appuser
 
-# Change ownership of the application code before running Composer
-RUN chown -R appuser:appgroup /var/www
-
-# Install PHP dependencies using Composer as non-root user
-USER appuser
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
-
-# Revert back to root user to finalize permissions
-USER root
-RUN chown -R appuser:appgroup /var/www
-
-# Stage 2: Final Image
-FROM php:8.3-fpm
-
-# Set working directory
-WORKDIR /var/www
-
-# Copy the non-root user and group from the builder stage
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
-
-# Copy PHP extensions and configuration from the builder stage
-COPY --from=builder /usr/local/etc/php /usr/local/etc/php
-COPY --from=builder /usr/local/lib/php/extensions /usr/local/lib/php/extensions
-COPY --from=builder /usr/local/bin/php /usr/local/bin/php
-COPY --from=builder /usr/local/lib/php /usr/local/lib/php
-
-# Copy installed PHP dependencies from the builder stage
-COPY --from=builder /var/www/vendor /var/www/vendor
-
-# Copy the application code
-COPY . /var/www
-
-# Change ownership of the application code
+# Set correct permissions after creating the user
 RUN chown -R appuser:appgroup /var/www \
-    && chmod -R 775 /var/www/storage \
-    && chmod -R 775 /var/www/bootstrap/cache
+    && chmod -R 755 /var/www \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Switch to the non-root user
+# Switch to non-root user
 USER appuser
+
+# Generate optimized autoload files
+RUN composer dump-autoload --optimize --ansi --no-dev
 
 EXPOSE 9000
 

@@ -1,7 +1,0 @@
-services:
-    app:
-        environment:
-            # explicitly defined in override, not needed in app env
-            XDEBUG_MODE: debug,develop
-        env_file:
-            - .env.testing
