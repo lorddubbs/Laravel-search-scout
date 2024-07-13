@@ -6,6 +6,8 @@ services:
             context: .
             # Specifies the Dockerfile to use for building the image
             dockerfile: .docker/app/Dockerfile
+            args:
+                - USER_ID=${UID:-1000}
             # Sets the working directory inside the container to /var/www/.
             # All commands will be run from this directory
         working_dir: /var/www/
@@ -16,8 +18,8 @@ services:
             # with the delegated option, which optimizes file system performance
             # by allowing the host to prioritize its updates(development)
             - ./:/var/www
-            # Mounts the xdebug.ini configuration file
-            - ./.docker/app/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+            - app-storage:/var/www/storage
+            - app-cache:/var/www/bootstrap/cache
         env_file:
             - .env
         # Ensure that the postgres & redis service start before the app
@@ -26,6 +28,11 @@ services:
             - redis
         networks:
             - l-s-s
+        healthcheck:
+            test: ["CMD", "php-fpm", "-t"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
 
     postgres:
         image: postgres:13
@@ -100,3 +107,7 @@ services:
 networks:
     l-s-s:
         driver: bridge
+
+volumes:
+    app-storage:
+    app-cache:

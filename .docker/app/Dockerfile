@@ -23,20 +23,21 @@ RUN apt-get update && apt-get install -y \
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath zip
-RUN pecl install redis xdebug \
-    && docker-php-ext-enable redis xdebug
+RUN pecl install redis \
+    && docker-php-ext-enable redis
+
+# Create a non-root user
+ARG USER_ID=1000
+RUN groupadd -g $USER_ID appgroup && useradd -u $USER_ID -g appgroup -d /var/www appuser
 
 # Copy application
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
 
-# Install Composer
-COPY --from=composer:2.5.8 /usr/bin/composer /usr/bin/composer
+# Copy Composer binary from the vendor stage
+COPY --from=vendor /usr/bin/composer /usr/bin/composer
 
-# Create a non-root user
-RUN groupadd -g 1000 appgroup && useradd -u 1000 -g appgroup -d /var/www appuser
-
-# Set correct permissions after creating the user
+# Set correct permissions
 RUN chown -R appuser:appgroup /var/www \
     && chmod -R 755 /var/www \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
