@@ -1,31 +1,52 @@
-# Use the official PHP image as the base image
+# Stage 1: Dependencies
+FROM composer:2.5.8 as vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --ansi --no-interaction --prefer-dist
+
+# Stage 2: Application
 FROM php:8.3-fpm
 
-# Set working directory
 WORKDIR /var/www
 
-# Install (necessary) system dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    curl \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    libpq-dev \
     zip \
     unzip \
-    libpq-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install Xdebug
-RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath zip
-
-# Install Redis PHP extension
 RUN pecl install redis \
-    && rm -rf /tmp/pear \
     && docker-php-ext-enable redis
+
+# Create a non-root user
+ARG USER_ID=1000
+RUN groupadd -g $USER_ID appgroup && useradd -u $USER_ID -g appgroup -d /var/www appuser
+
+# Copy application
+COPY . .
+COPY --from=vendor /app/vendor ./vendor
+
+# Copy Composer binary from the vendor stage
+COPY --from=vendor /usr/bin/composer /usr/bin/composer
+
+# Set correct permissions
+RUN chown -R appuser:appgroup /var/www \
+    && chmod -R 755 /var/www \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
+# Switch to non-root user
+USER appuser
+
+# Generate optimized autoload files
+RUN composer dump-autoload --optimize --ansi --no-dev
 
 EXPOSE 9000
 
