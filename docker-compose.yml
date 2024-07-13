@@ -18,8 +18,6 @@ services:
             # with the delegated option, which optimizes file system performance
             # by allowing the host to prioritize its updates(development)
             - ./:/var/www
-            - app-storage:/var/www/storage
-            - app-cache:/var/www/bootstrap/cache
         env_file:
             - .env
         # Ensure that the postgres & redis service start before the app
@@ -107,7 +105,3 @@ services:
 networks:
     l-s-s:
         driver: bridge
-
-volumes:
-    app-storage:
-    app-cache:

@@ -1,7 +1,7 @@
 # Stage 1: Dependencies
 FROM composer:2.5.8 as vendor
 
-WORKDIR /app
+WORKDIR /var/www
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --ansi --no-interaction --prefer-dist
@@ -31,8 +31,8 @@ ARG USER_ID=1000
 RUN groupadd -g $USER_ID appgroup && useradd -u $USER_ID -g appgroup -d /var/www appuser
 
 # Copy application
-COPY . .
-COPY --from=vendor /app/vendor ./vendor
+COPY . /var/www
+COPY --from=vendor /var/www/vendor ./vendor
 
 # Copy Composer binary from the vendor stage
 COPY --from=vendor /usr/bin/composer /usr/bin/composer
